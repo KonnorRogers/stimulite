@@ -1,0 +1,50 @@
+{
+  "name": "oil-rig",
+  "version": "0.0.1",
+  "description": "Coming soon...",
+  "main": "./exports/index.js",
+  "module": "./exports/index.js",
+  "types": "./exports/index.d.ts",
+  "exports": {
+    ".": "./exports/index.js",
+    "./package.json": "./package.json",
+    "./exports/*.js": "./exports/*.js",
+    "./exports/*": "./exports/*",
+    "./types/*": "./types/*.d.ts"
+  },
+  "type": "module",
+  "files": [
+    "exports",
+    "internal",
+    "types",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rimraf -g \"./{exports,internal}/**/*.d.ts\" && tsc",
+    "deploy:patch": "npm run build && npm version patch && npm publish && git push --follow-tags",
+    "deploy:minor": "npm run build && npm version minor && npm publish && git push --follow-tags",
+    "deploy:major": "npm run build && npm version major && npm publish && git push --follow-tags",
+    "test": "web-test-runner"
+  },
+  "keywords": [
+  ],
+  "license": "MIT",
+  "repository": "git@github.com:KonnorRogers/oil-rig.git",
+  "bugs": {
+    "url": "https://github.com/KonnorRogers/oil-rig/issues"
+  },
+  "homepage": "https://github.com/KonnorRogers/oil-rig",
+  "author": "KonnorRogers <konnor5456@gmail.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "oil-rig": "link:.",
+    "@open-wc/testing-helpers": "^2.3.0",
+    "@web/test-runner": "^0.17.2",
+    "@web/test-runner-playwright": "^0.10.1",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.2.2"
+  }
+}
