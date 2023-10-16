@@ -39,11 +39,14 @@
     "access": "public"
   },
   "devDependencies": {
-    "oil-rig": "link:.",
+    "@esm-bundle/chai": "4.3.4-fix.0",
     "@open-wc/testing-helpers": "^2.3.0",
     "@web/test-runner": "^0.17.2",
     "@web/test-runner-playwright": "^0.10.1",
+    "oil-rig": "link:.",
+    "playwright": "^1.39.0",
     "rimraf": "^5.0.5",
+    "sinon": "^16.1.0",
     "typescript": "^5.2.2"
   }
 }
