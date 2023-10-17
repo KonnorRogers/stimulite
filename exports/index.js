@@ -3,7 +3,6 @@
 /**
  * @typedef {object} RegistryOptions
  * @property {HTMLElement} [RegistryOptions.rootElement=document.documentElement]
- * @property {string} [RegistryOptions.registryName]
  * @property {string} [RegistryOptions.controllerAttribute="data-oil-controller"]
  * @property {string} [RegistryOptions.targetAttribute="data-oil-target"]
  */
@@ -53,12 +52,6 @@ export class Application {
     this.rootElement = options.rootElement;
 
     /**
-     * If null, will be considered the "default registry"
-     * @type {undefined | null | string}
-     */
-    this.registryName
-
-    /**
      * @type {Map<string, Controller>}
      */
     this._controllerMap = new Map();
@@ -67,6 +60,12 @@ export class Application {
      * @type {WeakMap<HTMLElement, Map<string, InstanceType<Controller>>>}
      */
     this._elementMap = new WeakMap();
+
+
+    /**
+     * @type {WeakMap<HTMLElement, Map<string, InstanceType<Controller>>>}
+     */
+    this._targetMap = new WeakMap()
 
     /**
      * If the registry has started listening for new elements.
@@ -93,7 +92,6 @@ export class Application {
    */
   start (options = {}) {
     this.rootElement = options.rootElement || document.documentElement
-    this.registryName = options.registryName
     this.controllerAttribute = options.controllerAttribute || "data-oil-controller"
 
     if (!this.started) {
@@ -201,13 +199,7 @@ export class Application {
   _upgradeControllers(controllerName, rootElement) {
     const root = rootElement || this.rootElement;
 
-    const registry = this.registryName
-
     let query = `[${this.controllerAttribute}~='${controllerName}']`
-
-    if (registry) {
-      query += `[data-oil-controller-registry~="${registry}"]`
-    }
 
     var matches = root.querySelectorAll(query);
 

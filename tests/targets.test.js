@@ -39,3 +39,46 @@ test("It should record when a target connects", async () => {
     assert.equal(target, controller.itemTargets[index])
   })
 })
+
+test("It should not count nested targets", async () => {
+  const application = Application.start()
+
+  const itemTargetConnectedSpy = Sinon.spy()
+  const itemTargetDisconnectedSpy = Sinon.spy()
+
+  application.register("example", class Example {
+    static targets = ["item"]
+
+    itemTargetConnected () {
+      itemTargetConnectedSpy()
+    }
+
+    itemTargetDisconnected () {
+      itemTargetDisconnectedSpy()
+    }
+  })
+
+  const el = await fixture(html`
+    <div data-oil-controller="example">
+      <div data-oil-target="example.item"></div>
+      <div data-oil-target="example.item"></div>
+      <div data-oil-target="example.item"></div>
+      <div data-oil-controller="example">
+        <div class="nested" data-oil-target="example.item"></div>
+        <div class="nested" data-oil-target="example.item"></div>
+      </div>
+    </div>
+  `)
+
+
+  const controller = application.getController(el, "example")
+  const nestedController = application.getController(el.querySelector("[data-oil-controller~='example']"), "example")
+
+  assert.equal(controller.hasChildTargets, true)
+  assert.equal(controller.childTargets, 3)
+  assert.equal(controller.childTarget, el.querySelector("[data-oil-target]"))
+
+  el.querySelectorAll("[data-oil-target~='example.item']").forEach((target, index) => {
+    assert.equal(target, controller.itemTargets[index])
+  })
+})
