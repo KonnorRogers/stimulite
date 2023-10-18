@@ -410,7 +410,7 @@ export class Application {
    * @param {HTMLElement} el
    */
   _upgradeTargets (el) {
-    const val = el.getAttribute(this.targetAttribute)
+    const val = el?.getAttribute(this.targetAttribute)
 
     if (!val) return
 
