@@ -78,7 +78,7 @@ test("It should not count nested targets", async () => {
   assert.equal(controller.childTargets, 3)
   assert.equal(controller.childTarget, el.querySelector("[data-oil-target]"))
 
-  el.querySelectorAll("[data-oil-target~='example.item']").forEach((target, index) => {
+  nestedController.element.querySelectorAll("[data-oil-target~='example.item']").forEach((target, index) => {
     assert.equal(target, controller.itemTargets[index])
   })
 })

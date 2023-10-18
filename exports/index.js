@@ -8,21 +8,40 @@
  */
 
 /**
- * @typedef {Constructable<{
-    element: HTMLElement;
-    controllerName: string;
-    application: Application;
-    isConnected: boolean;
-    initialize?: () => void;
-    connectedCallback?: () => void;
-    disconnectedCallback?: () => void;
- }>} Controller
+ *
  */
+export class Controller {
+  /**
+   * @param {object} options
+   * @param {HTMLElement} options.element
+   * @param {Application} options.application
+   * @param {string} options.controllerName
+   */
+  constructor ({ element, application, controllerName }) {
+    /**
+     * @type {Element}
+     */
+    this.element = element
 
-/**
- * @template {{}} [T={}]
- * @typedef {{new (...args: any[]): T}} Constructable
- */
+    /**
+     * @type {Application}
+     */
+    this.application = application
+
+    /**
+     * @type {string}
+     */
+    this.controllerName = controllerName
+
+    /**
+     * @type {boolean}
+     */
+    this.isConnected = false
+  }
+
+  connectedCallback () {}
+  disconnectedCallback () {}
+}
 
 export class Application {
   /**
@@ -52,18 +71,18 @@ export class Application {
     this.rootElement = options.rootElement;
 
     /**
-     * @type {Map<string, Controller>}
+     * @type {Map<string, typeof Controller>}
      */
     this._controllerMap = new Map();
 
     /**
-     * @type {WeakMap<HTMLElement, Map<string, InstanceType<Controller>>>}
+     * @type {WeakMap<HTMLElement, Map<string, Controller>>}
      */
     this._elementMap = new WeakMap();
 
 
     /**
-     * @type {WeakMap<HTMLElement, Map<string, InstanceType<Controller>>>}
+     * @type {WeakMap<HTMLElement, Map<string, Controller>>}
      */
     this._targetMap = new WeakMap()
 
@@ -121,7 +140,7 @@ export class Application {
   /**
    * Registers a new controller to listen for.
    * @param {string} controllerName
-   * @param {Controller} Constructor
+   * @param {typeof Controller} Constructor
    */
   register(controllerName, Constructor) {
     this._controllerMap.set(controllerName, Constructor);
@@ -132,23 +151,24 @@ export class Application {
    * Finds a map of controllers based on the element and controllerName.
    * @param {HTMLElement} element
    * @param {string} controllerName
+   * @return {null | undefined | Controller}
    */
   getController(element, controllerName) {
-    var map = this._elementMap.get(element);
+    let map = this._elementMap.get(element);
     if(!map) return;
     return map.get(controllerName);
   }
 
   /**
    * @param {string} controllerName
-   * @return {undefined | null | Controller}
+   * @return {undefined | null | typeof Controller}
    */
-  _getConstructor(controllerName){
+  _getConstructor (controllerName) {
     return this._controllerMap.get(controllerName);
   }
 
-  _observe(){
-    var root = this.rootElement;
+  _observe () {
+    let root = this.rootElement;
 
     if (!this.observer) {
       this.observer = new MutationObserver(this.handleMutations);
@@ -170,16 +190,17 @@ export class Application {
    * @param {MutationRecord[]} mutations
    */
   handleMutations = (mutations) => {
-    var registry = this;
+    let registry = this;
 
     for (const m of mutations) {
       if(m.type === 'attributes') {
         if (m.attributeName == null) continue;
 
-        var attr = registry._getConstructor(m.attributeName);
-
-        if(attr) {
-          registry._found(m.attributeName, /** @type {HTMLElement} */ (m.target));
+        if (m.attributeName === this.controllerAttribute) {
+          this._handleControllerAttributeMutation(m)
+          continue
+        } else if (m.attributeName === this.targetAttribute) {
+          this._handleTargetAttributeMutation(m)
         }
       }
       // childList
@@ -187,7 +208,9 @@ export class Application {
         m.removedNodes.forEach((node) => {
           this._downgradeAll(/** @type {HTMLElement} */ (node))
         })
-        m.addedNodes.forEach((node) => this._upgradeAllElements(/** @type {HTMLElement} */ (node)))
+        m.addedNodes.forEach((node) => {
+          this._upgradeAllElements(/** @type {HTMLElement} */ (node))
+        })
       }
     }
   }
@@ -201,10 +224,10 @@ export class Application {
 
     let query = `[${this.controllerAttribute}~='${controllerName}']`
 
-    var matches = root.querySelectorAll(query);
+    let matches = root.querySelectorAll(query);
 
     matches.forEach((match) => {
-      this._found(controllerName, /** @type {HTMLElement} */ (match));
+      this._createControllerInstance(controllerName, /** @type {HTMLElement} */ (match));
     })
   }
 
@@ -216,7 +239,7 @@ export class Application {
 
     this._upgradeElement(element)
 
-    element.querySelectorAll("*").forEach((el) => {
+    element.querySelectorAll(":scope *").forEach((el) => {
       this._upgradeElement(/** @type {HTMLElement} */ (el))
     })
   }
@@ -230,8 +253,8 @@ export class Application {
     const controllers = element.getAttribute(this.controllerAttribute)
 
     if (controllers) {
-      controllers.split(/\s+/).forEach((controllerName) => {
-        this._found(controllerName, element);
+      this._attributeToControllers(controllers).forEach((controllerName) => {
+        this._createControllerInstance(controllerName, element);
       })
     }
   }
@@ -244,58 +267,64 @@ export class Application {
 
     this._downgrade(element)
 
-    element.querySelectorAll("*").forEach((el) => {
+    element.querySelectorAll(":scope *").forEach((el) => {
       this._downgrade(/** @type {HTMLElement} */ (el))
     })
   }
 
   /**
    * @param {HTMLElement} element
+   * @param {string} [controllerName] - if a controllerName is given, only downgrade that specific controller.
    */
-  _downgrade = (element) => {
+  _downgrade = (element, controllerName) => {
     if(element.nodeType !== 1) return;
 
-    var map = this._elementMap.get(element);
+    let map = this._elementMap.get(element);
 
     if(!map) return;
 
-    map.forEach((inst) => {
+    if (!controllerName) {
+      // Downgrade every controller
+      map.forEach((inst) => {
+        if (inst.disconnectedCallback) {
+          inst.disconnectedCallback();
+          inst.isConnected = false
+        }
+      });
+    } else {
+      const inst = map.get(controllerName)
+
+      if (!inst) return
+
       if (inst.disconnectedCallback) {
-        inst.disconnectedCallback();
+        inst.disconnectedCallback()
         inst.isConnected = false
       }
-    });
+    }
   }
 
   /**
    * @param {string} controllerName
    * @param {HTMLElement} el
    */
-  _found(controllerName, el) {
-    var map = this._elementMap.get(el);
+  _createControllerInstance(controllerName, el) {
+    let map = this._elementMap.get(el);
 
     if(!map) {
       map = new Map();
       this._elementMap.set(el, map);
     }
 
-    var inst = map.get(controllerName);
-    var hasController = el.getAttribute(this.controllerAttribute)?.includes(controllerName);
+    let inst = map.get(controllerName);
+    let hasController = el.getAttribute(this.controllerAttribute)?.includes(controllerName);
 
     if(!inst) {
-      var Constructor = this._getConstructor(controllerName);
+      let Constructor = this._getConstructor(controllerName);
 
       if (!Constructor) return
 
-      inst = new Constructor();
+      inst = new Constructor({ element: el, application: this, controllerName });
       map.set(controllerName, inst);
-      inst.element = el;
-      inst.controllerName = controllerName
-      inst.application = this
-
-      if (inst.initialize) {
-        inst.initialize()
-      }
     }
 
     if (!inst.isConnected) {
@@ -304,8 +333,14 @@ export class Application {
       if(inst.connectedCallback) {
         inst.connectedCallback();
       }
-    }
 
+      setTimeout(() => {
+        // Find children targets and upgrade them
+        if (el) {
+          this._upgradeTargets()
+        }
+      })
+    }
 
     // Attribute was removed
     if(!hasController) {
@@ -316,4 +351,88 @@ export class Application {
       inst.isConnected = false
     }
   }
+
+  /**
+   * Takes an attribute and turns it into an array of controller names.
+   * @param {string} str
+   * @return {Array<string>}
+   */
+  _attributeToControllers (str) {
+    return str?.split(/\s+/) || []
+  }
+
+  /**
+   * @param {MutationRecord} m
+   */
+  _handleControllerAttributeMutation (m) {
+    if (!m.attributeName) return
+
+    const target = /** @type {HTMLElement} */ (m.target)
+    const attribute = target.getAttribute(m.attributeName)
+
+    // If we remove the attribute, we can just remove all controllers.
+    if (!attribute) {
+      this._downgrade(/** @type {HTMLElement} */ (target))
+      return
+    }
+
+    let controllersToConnect = this._attributeToControllers(attribute)
+
+    if (m.oldValue && attribute !== m.oldValue) {
+      // We need to do some diff logic here to figure out what controllers to disconnect
+      const oldControllers = this._attributeToControllers(m.oldValue)
+
+      // We could make turn these into Set and compare that way, but for such small arrays, feels wasteful.
+      // Disconnect any controllers not found in the new attributes.
+      oldControllers.forEach((controllerName) => {
+        if (controllersToConnect.includes(controllerName)) return
+
+        this._downgrade(target, controllerName)
+      })
+    }
+
+
+    const registry = this
+
+    controllersToConnect.forEach((controllerName) => {
+      registry._createControllerInstance(controllerName, target);
+    })
+  }
+
+  /**
+   * @param {MutationRecord} m
+   */
+  _handleTargetAttributeMutation (m) {
+    if (!m.attributeName) return
+  }
+
+  /**
+   * @param {HTMLElement} el
+   */
+  _upgradeTargets (el) {
+    const val = el.getAttribute(this.targetAttribute)
+
+    if (!val) return
+
+    const parentControllers = this._targetAttributeToControllers(val)
+  }
+
+  /**
+   * Returns the controllers for the given "target" attribute.
+   * @param {string} str - The attribute value to read
+   * @return {Array<string>}
+   * @example
+   *   <div data-oil-target="example.child example1.child"></div>
+   *   _targetAttributeToControllers(div.getAttribute("data-oil-target"))
+   *   // => ["example", "example1"]
+   */
+  _targetAttributeToControllers (str) {
+    if (!str) {
+      return []
+    }
+
+    // Split at white space, get to the bare strings, then split at the "."
+    return str.split(/\s+/).map((str) => str.split(/\./)[0])
+  }
 }
+
