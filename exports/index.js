@@ -3,8 +3,8 @@
 /**
  * @typedef {object} RegistryOptions
  * @property {HTMLElement} [RegistryOptions.rootElement=document.documentElement]
- * @property {string} [RegistryOptions.controllerAttribute="data-oil-controller"]
- * @property {string} [RegistryOptions.targetAttribute="data-oil-target"]
+ * @property {string} [RegistryOptions.controllerAttribute="oil-controller"]
+ * @property {string} [RegistryOptions.targetAttribute="oil-target"]
  */
 
 /**
@@ -12,12 +12,40 @@
  */
 export class Controller {
   /**
+   * @type {string[]}
+   */
+  static targets = []
+
+  /**
    * @param {object} options
    * @param {HTMLElement} options.element
    * @param {Application} options.application
    * @param {string} options.controllerName
    */
   constructor ({ element, application, controllerName }) {
+    ;/** @type {typeof Controller} */ (this.constructor).targets.forEach((targetName) => {
+      // Arrays need to be created every time. Otherwise they share an array across all instances.
+      // @ts-expect-error
+      this[`${targetName}Targets`] = [];
+
+      // @ts-expect-error
+      if (!this.constructor.__finalized__) {
+        // @ts-expect-error
+        this.constructor.__finalized__ = true;
+
+        Object.defineProperties(this.constructor.prototype, {
+          [`has${capitalize(targetName)}Target`]: {
+            value: false,
+            writable: true
+          },
+          [`${targetName}Target`]: {
+            value: null,
+            writable: true
+          },
+        })
+      }
+    })
+
     /**
      * @type {Element}
      */
@@ -82,9 +110,9 @@ export class Application {
 
 
     /**
-     * @type {WeakMap<HTMLElement, Map<string, Controller>>}
+     * @type {Map<Controller, Set<HTMLElement>>}
      */
-    this._targetMap = new WeakMap()
+    this._controllerTargetMap = new Map()
 
     /**
      * If the registry has started listening for new elements.
@@ -93,16 +121,16 @@ export class Application {
     this.started = false
 
     /**
-     * The attribute to use for finding a controller. Defaults to "data-oil-controller".
+     * The attribute to use for finding a controller. Defaults to "oil-controller".
      * @type {string}
      */
-    this.controllerAttribute = options.controllerAttribute || "data-oil-controller"
+    this.controllerAttribute = options.controllerAttribute || "oil-controller"
 
     /**
-     * The attribute to use for finding targets. Defaults to "data-oil-target".
+     * The attribute to use for finding targets. Defaults to "oil-target".
      * @type {string}
      */
-    this.targetAttribute = options.targetAttribute || "data-oil-target"
+    this.targetAttribute = options.targetAttribute || "oil-target"
   }
 
   /**
@@ -111,7 +139,14 @@ export class Application {
    */
   start (options = {}) {
     this.rootElement = options.rootElement || document.documentElement
-    this.controllerAttribute = options.controllerAttribute || "data-oil-controller"
+
+    if (options.controllerAttribute) {
+      this.controllerAttribute = options.controllerAttribute
+    }
+
+    if (options.targetAttribute) {
+      this.targetAttribute = options.targetAttribute
+    }
 
     if (!this.started) {
       this._observe();
@@ -239,7 +274,7 @@ export class Application {
 
     this._upgradeElement(element)
 
-    element.querySelectorAll(":scope *").forEach((el) => {
+    element.querySelectorAll("*").forEach((el) => {
       this._upgradeElement(/** @type {HTMLElement} */ (el))
     })
   }
@@ -267,7 +302,7 @@ export class Application {
 
     this._downgrade(element)
 
-    element.querySelectorAll(":scope *").forEach((el) => {
+    element.querySelectorAll("*").forEach((el) => {
       this._downgrade(/** @type {HTMLElement} */ (el))
     })
   }
@@ -315,7 +350,7 @@ export class Application {
       this._elementMap.set(el, map);
     }
 
-    let inst = map.get(controllerName);
+    let inst = this.getController(el, controllerName);
     let hasController = el.getAttribute(this.controllerAttribute)?.includes(controllerName);
 
     if(!inst) {
@@ -325,6 +360,9 @@ export class Application {
 
       inst = new Constructor({ element: el, application: this, controllerName });
       map.set(controllerName, inst);
+      inst.element = el
+      inst.application = this
+      inst.controllerName = controllerName
     }
 
     if (!inst.isConnected) {
@@ -337,7 +375,7 @@ export class Application {
       setTimeout(() => {
         // Find children targets and upgrade them
         if (el) {
-          this._upgradeTargets()
+          this._upgradeAllTargets(el)
         }
       })
     }
@@ -409,30 +447,91 @@ export class Application {
   /**
    * @param {HTMLElement} el
    */
-  _upgradeTargets (el) {
+  _upgradeAllTargets (el) {
+    this._upgradeTarget(el);
+
+    /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll(`[${this.targetAttribute}]`)).forEach((child) => {
+      this._upgradeTarget(child)
+    })
+  }
+
+  /**
+   * For a given element, go through all of its children and find its targets and connect them with the proper parent.
+   * @param {HTMLElement} el
+   */
+  _upgradeTarget (el) {
     const val = el?.getAttribute(this.targetAttribute)
 
     if (!val) return
 
-    const parentControllers = this._targetAttributeToControllers(val)
+    const parsedControllers = this._parseTargetAttribute(val)
+
+    // No controllers, nothing to upgrade.
+    if (parsedControllers.length <= 0) return
+
+    // We check the parentElement because if we do `.closest`, we could return the same element, but we only want to look "up" the DOM.
+    const parentEl = el.parentElement
+    if (!parentEl) return
+
+    parsedControllers.forEach(([controllerName, targetName]) => {
+      if (!controllerName) return
+      if (!targetName) return
+
+      const closestControllerEl = parentEl.closest(`[${this.controllerAttribute}~='${controllerName}']`)
+
+      if (!closestControllerEl) return
+
+      // We have a controller, lets find it in our map and fire a `xTargetConnected` and add it to its targets array.
+      const controller = this.getController(/** @type {HTMLElement} */ (closestControllerEl), controllerName)
+
+      if (!controller) return
+
+      // @ts-expect-error
+      if (!controller[`has${capitalize(targetName)}Target`]) {
+        // @ts-expect-error
+        controller[`has${capitalize(targetName)}Target`] = true
+      }
+
+      // @ts-expect-error
+      if (controller[`${targetName}Target`] == null) {
+        // @ts-expect-error
+        controller[`${targetName}Target`] = el
+      }
+
+      // @ts-expect-error
+      if (!controller[`${targetName}Targets`].includes(el)) {
+        // @ts-expect-error
+        controller[`${targetName}Targets`].push(el)
+
+        // @ts-expect-error
+        if (typeof controller[`${targetName}TargetConnected`] === "function") {
+          // @ts-expect-error
+          controller[`${targetName}TargetConnected`](el)
+        }
+      }
+    })
   }
 
   /**
    * Returns the controllers for the given "target" attribute.
+   * The [['controllerName', 'targetName'], ['controllerName', 'targetName']] is the array of tuples returned.
    * @param {string} str - The attribute value to read
-   * @return {Array<string>}
-   * @example
-   *   <div data-oil-target="example.child example1.child"></div>
-   *   _targetAttributeToControllers(div.getAttribute("data-oil-target"))
-   *   // => ["example", "example1"]
+   * @return {Array<[string, null | undefined | string]>}
    */
-  _targetAttributeToControllers (str) {
+  _parseTargetAttribute (str) {
     if (!str) {
       return []
     }
 
     // Split at white space, get to the bare strings, then split at the "."
-    return str.split(/\s+/).map((str) => str.split(/\./)[0])
+    return str.split(/\s+/).map((str) => /** @type {[string, null | undefined | string]} */ (str.split(/\./)))
   }
 }
 
+/**
+ * @param {string} str
+ * @return {string}
+ */
+function capitalize (str) {
+  return str[0].toUpperCase() + str.slice(1, str.length)
+}
