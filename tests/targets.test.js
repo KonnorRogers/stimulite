@@ -165,6 +165,18 @@ test("It should not count nested targets when using multiple controllers", async
   assert.equal(itemTargetConnectedSpy.callCount, 9)
 
   el.querySelector("#nested-2").remove()
+
+  await aTimeout(1)
   // 1 time for example-1 and example-2
-  // assert.equal(itemTargetDisconnectedSpy.callCount, 2)
+  assert.equal(itemTargetDisconnectedSpy.callCount, 2)
+
+  el.querySelector("[oil-target]").setAttribute("oil-target", "example-2.item")
+
+  await aTimeout(1)
+  assert.equal(itemTargetConnectedSpy.callCount, 9)
+  assert.equal(itemTargetDisconnectedSpy.callCount, 3)
+
+  el.querySelector("[oil-controller~='example-1']").remove()
+  await aTimeout(1)
+  assert.equal(itemTargetDisconnectedSpy.callCount, 5)
 })

@@ -241,7 +241,7 @@ export class Application {
       // childList
       else {
         m.removedNodes.forEach((node) => {
-          this._downgradeAll(/** @type {HTMLElement} */ (node))
+          this._downgradeAllElements(/** @type {HTMLElement} */ (node))
         })
         m.addedNodes.forEach((node) => {
           this._upgradeAllElements(/** @type {HTMLElement} */ (node))
@@ -297,7 +297,7 @@ export class Application {
   /**
    * @param {HTMLElement} element
    */
-  _downgradeAll = (element) => {
+  _downgradeAllElements = (element) => {
     if(element.nodeType !== 1) return;
 
     this._downgrade(element)
@@ -360,9 +360,9 @@ export class Application {
 
       inst = new Constructor({ element: el, application: this, controllerName });
       map.set(controllerName, inst);
-      inst.element = el
-      inst.application = this
-      inst.controllerName = controllerName
+      // inst.element = el
+      // inst.application = this
+      // inst.controllerName = controllerName
     }
 
     if (!inst.isConnected) {
@@ -429,11 +429,8 @@ export class Application {
       })
     }
 
-
-    const registry = this
-
     controllersToConnect.forEach((controllerName) => {
-      registry._createControllerInstance(controllerName, target);
+      this._createControllerInstance(controllerName, target);
     })
   }
 
@@ -442,6 +439,31 @@ export class Application {
    */
   _handleTargetAttributeMutation (m) {
     if (!m.attributeName) return
+
+    const target = /** @type {HTMLElement} */ (m.target)
+
+    const currentVal = target.getAttribute(this.targetAttribute)
+    const oldVal = m.oldValue
+
+    let oldControllersAndTargets = {}
+
+    if (oldVal) {
+      oldControllersAndTargets = this._parseTargetAttribute(oldVal)
+    }
+
+    let currentControllersAndTargets = {}
+
+    if (currentVal) {
+      currentControllersAndTargets = this._parseTargetAttribute(currentVal)
+    }
+  }
+
+  /**
+   * @param {HTMLElement} element
+   * @param {string} [controllerName]
+   */
+  _downgradeTarget(element, controllerName) {
+    const map = this._elementMap.get(element)
   }
 
   /**
@@ -466,65 +488,78 @@ export class Application {
 
     const parsedControllers = this._parseTargetAttribute(val)
 
-    // No controllers, nothing to upgrade.
-    if (parsedControllers.length <= 0) return
-
     // We check the parentElement because if we do `.closest`, we could return the same element, but we only want to look "up" the DOM.
     const parentEl = el.parentElement
     if (!parentEl) return
 
-    parsedControllers.forEach(([controllerName, targetName]) => {
-      if (!controllerName) return
-      if (!targetName) return
+    Object.entries(parsedControllers).forEach(([controllerName, targetNames]) => {
+      targetNames.forEach((targetName) => {
+        if (!controllerName) return
+        if (!targetName) return
 
-      const closestControllerEl = parentEl.closest(`[${this.controllerAttribute}~='${controllerName}']`)
+        const closestControllerEl = parentEl.closest(`[${this.controllerAttribute}~='${controllerName}']`)
 
-      if (!closestControllerEl) return
+        if (!closestControllerEl) return
 
-      // We have a controller, lets find it in our map and fire a `xTargetConnected` and add it to its targets array.
-      const controller = this.getController(/** @type {HTMLElement} */ (closestControllerEl), controllerName)
+        // We have a controller, lets find it in our map and fire a `xTargetConnected` and add it to its targets array.
+        const controller = this.getController(/** @type {HTMLElement} */ (closestControllerEl), controllerName)
 
-      if (!controller) return
-
-      // @ts-expect-error
-      if (!controller[`has${capitalize(targetName)}Target`]) {
-        // @ts-expect-error
-        controller[`has${capitalize(targetName)}Target`] = true
-      }
-
-      // @ts-expect-error
-      if (controller[`${targetName}Target`] == null) {
-        // @ts-expect-error
-        controller[`${targetName}Target`] = el
-      }
-
-      // @ts-expect-error
-      if (!controller[`${targetName}Targets`].includes(el)) {
-        // @ts-expect-error
-        controller[`${targetName}Targets`].push(el)
+        if (!controller) return
 
         // @ts-expect-error
-        if (typeof controller[`${targetName}TargetConnected`] === "function") {
+        if (!controller[`has${capitalize(targetName)}Target`]) {
           // @ts-expect-error
-          controller[`${targetName}TargetConnected`](el)
+          controller[`has${capitalize(targetName)}Target`] = true
         }
-      }
+
+        // @ts-expect-error
+        if (controller[`${targetName}Target`] == null) {
+          // @ts-expect-error
+          controller[`${targetName}Target`] = el
+        }
+
+        // @ts-expect-error
+        if (!controller[`${targetName}Targets`].includes(el)) {
+          // @ts-expect-error
+          controller[`${targetName}Targets`].push(el)
+
+          // @ts-expect-error
+          if (typeof controller[`${targetName}TargetConnected`] === "function") {
+            // @ts-expect-error
+            controller[`${targetName}TargetConnected`](el)
+          }
+        }
+      })
     })
   }
 
   /**
    * Returns the controllers for the given "target" attribute.
-   * The [['controllerName', 'targetName'], ['controllerName', 'targetName']] is the array of tuples returned.
+   * The { 'controllerName': [target1, target2] }.
    * @param {string} str - The attribute value to read
-   * @return {Array<[string, null | undefined | string]>}
+   * @return {Record<string, Array<string>>}
    */
   _parseTargetAttribute (str) {
     if (!str) {
-      return []
+      return {}
     }
 
+    /** @type {Record<string, Array<string>>} */ const finalObj = {}
+
     // Split at white space, get to the bare strings, then split at the "."
-    return str.split(/\s+/).map((str) => /** @type {[string, null | undefined | string]} */ (str.split(/\./)))
+    str.split(/\s+/).forEach((str) => {
+      const parsedStr = str.split(/\./)
+      const controllerName = parsedStr[0]
+      const targetName = parsedStr[1]
+
+      if (!finalObj[controllerName]) {
+        finalObj[controllerName] = []
+      }
+
+      finalObj[controllerName].push(targetName)
+    })
+
+    return finalObj
   }
 }
 
