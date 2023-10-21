@@ -16,6 +16,8 @@ export class Controller {
    */
   static targets = []
 
+  static __finalized__ = false
+
   /**
    * @param {object} options
    * @param {HTMLElement} options.element
@@ -24,23 +26,41 @@ export class Controller {
    */
   constructor ({ element, application, controllerName }) {
     ;/** @type {typeof Controller} */ (this.constructor).targets.forEach((targetName) => {
-      // Arrays need to be created every time. Otherwise they share an array across all instances.
-      // @ts-expect-error
-      this[`${targetName}Targets`] = [];
+      /// 11@ts-expect-error
+      // this[`${targetName}Targets`] = []
 
-      // @ts-expect-error
-      if (!this.constructor.__finalized__) {
-        // @ts-expect-error
-        this.constructor.__finalized__ = true;
+      const ctor = /** @type {typeof Controller} */ (this.constructor)
+      // Make sure target calls are accessible in the constructor.
+      if (!ctor.__finalized__) {
+        ctor.__finalized__ = true;
 
-        Object.defineProperties(this.constructor.prototype, {
+        Object.defineProperties(ctor.prototype, {
+          [`${targetName}Targets`]: {
+            get () {
+              /**
+               * @type {HTMLElement[]}
+               */
+              const ary = [];
+              /** @type {NodeListOf<HTMLElement>} */ (this.element.querySelectorAll(this.application._targetQuery(this.controllerName, targetName))).forEach((el) => {
+                if (el.closest(this.application._controllerQuery(this.controllerName)) !== this.element) {
+                  return
+                }
+
+                ary.push(el)
+              })
+
+              return ary
+            }
+          },
           [`has${capitalize(targetName)}Target`]: {
-            value: false,
-            writable: true
+            get () {
+              return Boolean(this[`${targetName}Target`])
+            },
           },
           [`${targetName}Target`]: {
-            value: null,
-            writable: true
+            get () {
+              return this[`${targetName}Targets`]?.[0] || null
+            },
           },
         })
       }
@@ -99,20 +119,22 @@ export class Application {
     this.rootElement = options.rootElement;
 
     /**
+     * A map of all Controller constructors
      * @type {Map<string, typeof Controller>}
      */
-    this._controllerMap = new Map();
+    this._controllerConstructorMap = new Map();
 
     /**
+     * A weakmap of all controller instances attach to a particular element
      * @type {WeakMap<HTMLElement, Map<string, Controller>>}
      */
-    this._elementMap = new WeakMap();
-
+    this._controllerInstanceMap = new WeakMap();
 
     /**
-     * @type {Map<Controller, Set<HTMLElement>>}
+     * A weakmap to track if a target has connected or not for a particular controller.
+     * @type {WeakMap<Controller, WeakMap<Element | HTMLElement, boolean>>}
      */
-    this._controllerTargetMap = new Map()
+    this._targetConnectionMap = new WeakMap();
 
     /**
      * If the registry has started listening for new elements.
@@ -178,7 +200,7 @@ export class Application {
    * @param {typeof Controller} Constructor
    */
   register(controllerName, Constructor) {
-    this._controllerMap.set(controllerName, Constructor);
+    this._controllerConstructorMap.set(controllerName, Constructor);
     this._upgradeControllers(controllerName);
   }
 
@@ -189,7 +211,7 @@ export class Application {
    * @return {null | undefined | Controller}
    */
   getController(element, controllerName) {
-    let map = this._elementMap.get(element);
+    let map = this._controllerInstanceMap.get(element);
     if(!map) return;
     return map.get(controllerName);
   }
@@ -199,7 +221,7 @@ export class Application {
    * @return {undefined | null | typeof Controller}
    */
   _getConstructor (controllerName) {
-    return this._controllerMap.get(controllerName);
+    return this._controllerConstructorMap.get(controllerName);
   }
 
   _observe () {
@@ -225,8 +247,6 @@ export class Application {
    * @param {MutationRecord[]} mutations
    */
   handleMutations = (mutations) => {
-    let registry = this;
-
     for (const m of mutations) {
       if(m.type === 'attributes') {
         if (m.attributeName == null) continue;
@@ -257,9 +277,7 @@ export class Application {
   _upgradeControllers(controllerName, rootElement) {
     const root = rootElement || this.rootElement;
 
-    let query = `[${this.controllerAttribute}~='${controllerName}']`
-
-    let matches = root.querySelectorAll(query);
+    let matches = root.querySelectorAll(this._controllerQuery(controllerName));
 
     matches.forEach((match) => {
       this._createControllerInstance(controllerName, /** @type {HTMLElement} */ (match));
@@ -314,7 +332,7 @@ export class Application {
   _downgrade = (element, controllerName) => {
     if(element.nodeType !== 1) return;
 
-    let map = this._elementMap.get(element);
+    let map = this._controllerInstanceMap.get(element);
 
     if(!map) return;
 
@@ -343,14 +361,15 @@ export class Application {
    * @param {HTMLElement} el
    */
   _createControllerInstance(controllerName, el) {
-    let map = this._elementMap.get(el);
+    let controllerInstanceMap = this._controllerInstanceMap.get(el);
 
-    if(!map) {
-      map = new Map();
-      this._elementMap.set(el, map);
+    if(!controllerInstanceMap) {
+      controllerInstanceMap = new Map();
+      this._controllerInstanceMap.set(el, controllerInstanceMap);
     }
 
     let inst = this.getController(el, controllerName);
+
     let hasController = el.getAttribute(this.controllerAttribute)?.includes(controllerName);
 
     if(!inst) {
@@ -359,10 +378,14 @@ export class Application {
       if (!Constructor) return
 
       inst = new Constructor({ element: el, application: this, controllerName });
-      map.set(controllerName, inst);
-      // inst.element = el
-      // inst.application = this
-      // inst.controllerName = controllerName
+      controllerInstanceMap.set(controllerName, inst);
+    }
+
+    let targetMap = this._targetConnectionMap.get(inst)
+
+    if (!targetMap) {
+      targetMap = new WeakMap()
+      this._targetConnectionMap.set(inst, targetMap)
     }
 
     if (!inst.isConnected) {
@@ -372,10 +395,10 @@ export class Application {
         inst.connectedCallback();
       }
 
+      // Find children targets and upgrade them
       setTimeout(() => {
-        // Find children targets and upgrade them
-        if (el) {
-          this._upgradeAllTargets(el)
+        if (inst) {
+          this._upgradeTargets(inst)
         }
       })
     }
@@ -435,131 +458,114 @@ export class Application {
   }
 
   /**
-   * @param {MutationRecord} m
+   * @param {MutationRecord} mutation
    */
-  _handleTargetAttributeMutation (m) {
-    if (!m.attributeName) return
+  _handleTargetAttributeMutation (mutation) {
+    if (!mutation.attributeName) return
 
-    const target = /** @type {HTMLElement} */ (m.target)
-
-    const currentVal = target.getAttribute(this.targetAttribute)
-    const oldVal = m.oldValue
-
-    let oldControllersAndTargets = {}
-
-    if (oldVal) {
-      oldControllersAndTargets = this._parseTargetAttribute(oldVal)
+    if (mutation.attributeName !== this.targetAttribute) {
+      return
     }
 
-    let currentControllersAndTargets = {}
+    /**
+     * @type {HTMLElement}
+     */
+    // @ts-expect-error
+    const target = mutation.target
 
-    if (currentVal) {
-      currentControllersAndTargets = this._parseTargetAttribute(currentVal)
-    }
-  }
+    const targetAttr = target.getAttribute(this.targetAttribute)
 
-  /**
-   * @param {HTMLElement} element
-   * @param {string} [controllerName]
-   */
-  _downgradeTarget(element, controllerName) {
-    const map = this._elementMap.get(element)
-  }
+    if (!targetAttr) return
 
-  /**
-   * @param {HTMLElement} el
-   */
-  _upgradeAllTargets (el) {
-    this._upgradeTarget(el);
+    const controllersToFind = this._parseControllersFromTargetAttribute(targetAttr)
 
-    /** @type {NodeListOf<HTMLElement>} */ (el.querySelectorAll(`[${this.targetAttribute}]`)).forEach((child) => {
-      this._upgradeTarget(child)
+    controllersToFind.forEach((controllerName) => {
+      /** Have to check parentElement because closest could return a controller at same level as target. */
+      const closestController = target?.parentElement?.closest(this._controllerQuery(controllerName))
+
+      if (!closestController) return
+
+      const controller = this.getController(/** @type {HTMLElement} */ (closestController), controllerName)
+
+      if (!controller) return
+
+      this._upgradeTargets(controller)
     })
   }
 
   /**
-   * For a given element, go through all of its children and find its targets and connect them with the proper parent.
-   * @param {HTMLElement} el
+    * Finds all `[oil-target~=<controller>.<target>]`
+    * @param {string} controllerName -
+    * @param {string} targetName
+    * @return {string}
+    */
+  _targetQuery (controllerName, targetName) {
+    // Because we scope, we need to make sure the parent is not the same controller.
+    return `[${this.targetAttribute}~='${controllerName}.${targetName}']`
+  }
+
+  /**
+   * @param {string} controllerName
+   * @return {string}
    */
-  _upgradeTarget (el) {
-    const val = el?.getAttribute(this.targetAttribute)
+  _controllerQuery(controllerName) {
+    return `[${this.controllerAttribute}~='${controllerName}']`
+  }
 
-    if (!val) return
+  /**
+   * @param {Controller} controller
+   */
+  _upgradeTargets(controller) {
+    /** @type {typeof Controller} */ (controller.constructor).targets.forEach((targetName) => {
+      const { element, controllerName } = controller
+      const query = this._targetQuery(controllerName, targetName)
 
-    const parsedControllers = this._parseTargetAttribute(val)
-
-    // We check the parentElement because if we do `.closest`, we could return the same element, but we only want to look "up" the DOM.
-    const parentEl = el.parentElement
-    if (!parentEl) return
-
-    Object.entries(parsedControllers).forEach(([controllerName, targetNames]) => {
-      targetNames.forEach((targetName) => {
-        if (!controllerName) return
-        if (!targetName) return
-
-        const closestControllerEl = parentEl.closest(`[${this.controllerAttribute}~='${controllerName}']`)
-
-        if (!closestControllerEl) return
-
-        // We have a controller, lets find it in our map and fire a `xTargetConnected` and add it to its targets array.
-        const controller = this.getController(/** @type {HTMLElement} */ (closestControllerEl), controllerName)
-
-        if (!controller) return
-
-        // @ts-expect-error
-        if (!controller[`has${capitalize(targetName)}Target`]) {
-          // @ts-expect-error
-          controller[`has${capitalize(targetName)}Target`] = true
+      let targetMap = this._targetConnectionMap.get(controller)
+      element.querySelectorAll(query).forEach((target) => {
+        // This preserves scope.
+        if (target.closest(this._controllerQuery(controllerName)) !== element) {
+          return
         }
 
-        // @ts-expect-error
-        if (controller[`${targetName}Target`] == null) {
-          // @ts-expect-error
-          controller[`${targetName}Target`] = el
+        if (!targetMap) {
+          targetMap = new WeakMap()
+          this._targetConnectionMap.set(controller, targetMap)
         }
 
-        // @ts-expect-error
-        if (!controller[`${targetName}Targets`].includes(el)) {
-          // @ts-expect-error
-          controller[`${targetName}Targets`].push(el)
+        const isConnected = targetMap.get(target)
 
-          // @ts-expect-error
-          if (typeof controller[`${targetName}TargetConnected`] === "function") {
-            // @ts-expect-error
-            controller[`${targetName}TargetConnected`](el)
-          }
+        if (isConnected) return
+
+        /** @type {(target: Element) => void} */
+        // @ts-expect-error
+        const targetConnectedFn = controller[`${targetName}TargetConnected`]
+
+        if (typeof targetConnectedFn === "function") {
+          targetMap.set(target, true)
+          targetConnectedFn(target)
         }
       })
     })
   }
 
   /**
-   * Returns the controllers for the given "target" attribute.
-   * The { 'controllerName': [target1, target2] }.
-   * @param {string} str - The attribute value to read
-   * @return {Record<string, Array<string>>}
+   * @param {string} str
+   * @return {Array<string>}
    */
-  _parseTargetAttribute (str) {
-    if (!str) {
-      return {}
-    }
+  _parseControllersFromTargetAttribute (str) {
+    /**
+     * @type {Array<string>}
+     */
+    const ary = []
 
-    /** @type {Record<string, Array<string>>} */ const finalObj = {}
+    str.split(/\s+/).forEach((targetString) => {
+      const splitStr = targetString.split(/\./)
 
-    // Split at white space, get to the bare strings, then split at the "."
-    str.split(/\s+/).forEach((str) => {
-      const parsedStr = str.split(/\./)
-      const controllerName = parsedStr[0]
-      const targetName = parsedStr[1]
-
-      if (!finalObj[controllerName]) {
-        finalObj[controllerName] = []
-      }
-
-      finalObj[controllerName].push(targetName)
+      const controllerName = splitStr[0]
+      ary.push(controllerName)
     })
 
-    return finalObj
+    return ary
   }
 }
 

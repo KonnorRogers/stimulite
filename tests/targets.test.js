@@ -16,7 +16,7 @@ test("It should have target functions in the constructor", () => {
     }
   }
 
-  new Example({})
+  new Example({element: document.createElement("div"), application: Application.start() })
 })
 
 test("It should record when a target connects", async () => {
@@ -50,6 +50,94 @@ test("It should record when a target connects", async () => {
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 3)
+  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+
+  el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
+    assert.equal(target, controller.itemTargets[index])
+  })
+})
+
+test("It should record when a target attribute changes and disconnects", async () => {
+  const application = Application.start()
+
+  const itemTargetConnectedSpy = Sinon.spy()
+  const itemTargetDisconnectedSpy = Sinon.spy()
+
+  application.register("example", class Example extends Controller {
+    static targets = ["item"]
+
+    itemTargetConnected () {
+      itemTargetConnectedSpy()
+    }
+
+    itemTargetDisconnected () {
+      itemTargetDisconnectedSpy()
+    }
+  })
+
+  const el = await fixture(html`
+    <div oil-controller="example">
+      <div oil-target="example.item"></div>
+      <div></div>
+    </div>
+  `)
+
+  await aTimeout(1)
+  const controller = application.getController(el, "example")
+
+  assert.equal(itemTargetDisconnectedSpy.calledOnce, false)
+
+  el.querySelectorAll("div")[0].setAttribute("oil-target", "")
+  await aTimeout(1)
+  assert.equal(controller.hasItemTarget, false)
+  assert.equal(controller.itemTarget, null)
+  assert.equal(controller.itemTargets.length, 0)
+
+  assert.equal(itemTargetDisconnectedSpy.calledOnce, true)
+})
+
+test("It should record when a target element changes its attribute and connects", async () => {
+  const application = Application.start()
+
+  const itemTargetConnectedSpy = Sinon.spy()
+  const itemTargetDisconnectedSpy = Sinon.spy()
+
+  application.register("example", class Example extends Controller {
+    static targets = ["item"]
+
+    itemTargetConnected () {
+      itemTargetConnectedSpy()
+    }
+
+    itemTargetDisconnected () {
+      itemTargetDisconnectedSpy()
+    }
+  })
+
+  const el = await fixture(html`
+    <div oil-controller="example">
+      <div oil-target="example.item"></div>
+      <div></div>
+    </div>
+  `)
+
+  await aTimeout(1)
+  const controller = application.getController(el, "example")
+
+  assert.equal(controller.hasItemTarget, true)
+  assert.equal(controller.itemTargets.length, 1)
+  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+
+  el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
+    assert.equal(target, controller.itemTargets[index])
+  })
+
+  el.querySelectorAll("div")[1].setAttribute("oil-target", "example.item")
+
+  await aTimeout(1)
+
+  assert.equal(controller.hasItemTarget, true)
+  assert.equal(controller.itemTargets.length, 2)
   assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
 
   el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
