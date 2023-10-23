@@ -14,7 +14,9 @@ test("It should bind to document and listen for new controllers (append nested)"
   const disconnectSpy = Sinon.spy()
   const constructorSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
+    static controllerName = "example"
+
     constructor (element) {
       super(element)
       assert.instanceOf(this.element, HTMLElement)
@@ -78,7 +80,8 @@ test("It should bind root level and listen for new controllers (append top-level
   const disconnectSpy = Sinon.spy()
   const constructorSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
+    static controllerName = "example"
     constructor (element) {
       super(element)
       assert.instanceOf(this.element, HTMLElement)
@@ -140,7 +143,8 @@ test("It should invoke the lifecycle if the controllers already exist in the DOM
   const disconnectSpy = Sinon.spy()
   const constructorSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
+    static controllerName = "example"
     constructor (element) {
       super(element)
       assert.instanceOf(this.element, HTMLElement)
@@ -173,7 +177,8 @@ test("It should invoke lifecycles when attributes change", async () => {
   const disconnectSpy = Sinon.spy()
   const constructorSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
+    static controllerName = "example"
     constructor (element) {
       super(element)
       assert.instanceOf(this.element, HTMLElement)

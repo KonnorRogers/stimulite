@@ -25,8 +25,9 @@ test("It should record when a target connects", async () => {
   const itemTargetConnectedSpy = Sinon.spy()
   const itemTargetDisconnectedSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
     static targets = ["item"]
+    static controllerName = "example"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -63,8 +64,9 @@ test("It should record when a target attribute changes and disconnects", async (
   const itemTargetConnectedSpy = Sinon.spy()
   const itemTargetDisconnectedSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
     static targets = ["item"]
+    static controllerName = "example"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -93,7 +95,7 @@ test("It should record when a target attribute changes and disconnects", async (
   assert.equal(controller.itemTarget, null)
   assert.equal(controller.itemTargets.length, 0)
 
-  assert.equal(itemTargetDisconnectedSpy.calledOnce, true)
+  assert.equal(itemTargetDisconnectedSpy.callCount, 1)
 })
 
 test("It should record when a target element changes its attribute and connects", async () => {
@@ -102,8 +104,9 @@ test("It should record when a target element changes its attribute and connects"
   const itemTargetConnectedSpy = Sinon.spy()
   const itemTargetDisconnectedSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
     static targets = ["item"]
+    static controllerName = "example"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -151,8 +154,9 @@ test("It should not count nested targets", async () => {
   const itemTargetConnectedSpy = Sinon.spy()
   const itemTargetDisconnectedSpy = Sinon.spy()
 
-  application.register("example", class Example extends Controller {
+  application.register(class Example extends Controller {
     static targets = ["item"]
+    static controllerName = "example"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -190,14 +194,136 @@ test("It should not count nested targets", async () => {
   assert.equal(itemTargetConnectedSpy.callCount, 5)
 })
 
+test("Should record target disconnects when the parent disconnect", async () => {
+  const application = Application.start()
+
+  const itemTargetDisconnectedSpy = Sinon.spy()
+  const controllerDisconnectedSpy = Sinon.spy()
+  const callOrder = [
+  ]
+
+  application.register(class Example extends Controller {
+    static targets = ["item"]
+    static controllerName = "example"
+
+    connectedCallback () {
+      callOrder.push("connectedCallback")
+    }
+
+    disconnectedCallback () {
+      controllerDisconnectedSpy()
+      callOrder.push("disconnectedCallback")
+    }
+
+    itemTargetConnected () {
+      callOrder.push("itemTargetConnected")
+    }
+
+    itemTargetDisconnected () {
+      callOrder.push("itemTargetDisconnected")
+      itemTargetDisconnectedSpy()
+    }
+  })
+
+  const el = await fixture(html`
+    <div oil-controller='example'>
+      <div oil-target="example.item"></div>
+    </div>
+  `)
+
+  await aTimeout(1)
+
+  assert.equal(controllerDisconnectedSpy.calledOnce, false)
+  assert.equal(itemTargetDisconnectedSpy.calledOnce, false)
+
+  el.remove()
+
+  await aTimeout(1)
+
+  assert.equal(controllerDisconnectedSpy.calledOnce, true)
+  assert.equal(itemTargetDisconnectedSpy.calledOnce, true)
+
+  assert.equal(callOrder.length, 4)
+  assert.deepEqual(callOrder, [
+    "connectedCallback",
+    "itemTargetConnected",
+    "itemTargetDisconnected",
+    "disconnectedCallback"
+  ])
+})
+
+test("It should only disconnect nested targets when using multiple controllers", async () => {
+  const application = Application.start()
+
+  const exampleOneDisconnectedSpy = Sinon.spy()
+  const exampleTwoDisconnectedSpy = Sinon.spy()
+
+  const el = document.createElement("div")
+  el.innerHTML = `
+    <div oil-controller="example-1 example-2">
+      <div oil-target="example-1.item"></div>
+      <div oil-target="example-1.item example-2.item"></div>
+      <div oil-target="example-1.item example-2.item"></div>
+      <div id="nested" oil-controller="example-1">
+        <div id="nested-1" class="nested" oil-target="example-1.item example-2.item"></div>
+        <div id="nested-2" class="nested" oil-target="example-1.item example-2.item"></div>
+      </div>
+    </div>
+  `
+
+  document.body.append(el)
+
+  application.register(class Example2 extends Controller {
+    static targets = ["item"]
+    static controllerName = "example-2"
+
+    itemTargetDisconnected (el) {
+      exampleTwoDisconnectedSpy()
+    }
+  })
+
+  application.register(class Example extends Controller {
+    static targets = ["item"]
+    static controllerName = "example-1"
+
+    itemTargetDisconnected () {
+      exampleOneDisconnectedSpy()
+    }
+  })
+
+  await aTimeout(10)
+
+  assert.equal(exampleOneDisconnectedSpy.callCount, 0)
+  assert.equal(exampleTwoDisconnectedSpy.callCount, 0)
+
+  const nestedExample1 = el.querySelector("#nested-1")
+  nestedExample1.remove()
+
+  await aTimeout(10)
+  assert.equal(exampleOneDisconnectedSpy.callCount, 1)
+  assert.equal(exampleTwoDisconnectedSpy.callCount, 1)
+
+  const nestedExample2 = el.querySelector("#nested-2")
+  nestedExample2.remove()
+
+  await aTimeout(10)
+  assert.equal(exampleOneDisconnectedSpy.callCount, 2)
+  assert.equal(exampleTwoDisconnectedSpy.callCount, 2)
+
+  application.stop()
+  await aTimeout(1000)
+  el.remove()
+})
+
 test("It should not count nested targets when using multiple controllers", async () => {
   const application = Application.start()
 
   const itemTargetConnectedSpy = Sinon.spy()
   const itemTargetDisconnectedSpy = Sinon.spy()
 
-  application.register("example-1", class Example extends Controller {
+  application.register(class Example extends Controller {
     static targets = ["item"]
+    static controllerName = "example-1"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -208,8 +334,9 @@ test("It should not count nested targets when using multiple controllers", async
     }
   })
 
-  application.register("example-2", class Example2 extends Controller {
+  application.register(class Example2 extends Controller {
     static targets = ["item"]
+    static controllerName = "example-2"
 
     itemTargetConnected () {
       itemTargetConnectedSpy()
@@ -252,19 +379,26 @@ test("It should not count nested targets when using multiple controllers", async
   // We added 4 extra calls for example-2
   assert.equal(itemTargetConnectedSpy.callCount, 9)
 
-  el.querySelector("#nested-2").remove()
+  el.querySelector("#nested-1").remove()
 
   await aTimeout(1)
   // 1 time for example-1 and example-2
   assert.equal(itemTargetDisconnectedSpy.callCount, 2)
 
+  el.querySelector("#nested-2").remove()
+
+  await aTimeout(1)
+  // 1 time for example-1 and example-2
+  assert.equal(itemTargetDisconnectedSpy.callCount, 4)
+
   el.querySelector("[oil-target]").setAttribute("oil-target", "example-2.item")
 
   await aTimeout(1)
   assert.equal(itemTargetConnectedSpy.callCount, 9)
-  assert.equal(itemTargetDisconnectedSpy.callCount, 3)
+  assert.equal(itemTargetDisconnectedSpy.callCount, 5)
 
   el.querySelector("[oil-controller~='example-1']").remove()
   await aTimeout(1)
+  // Should not fire any disconnects despite a controller being removed
   assert.equal(itemTargetDisconnectedSpy.callCount, 5)
 })
