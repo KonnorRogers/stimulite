@@ -1,6 +1,6 @@
 {
   "name": "stimulite",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A tiny ~2kb alternative to Stimulus",
   "main": "./exports/index.js",
   "module": "./exports/index.js",
