@@ -2,8 +2,8 @@ import { Controller} from "./controller.js"
 /**
  * @typedef {object} RegistryOptions
  * @property {HTMLElement} [RegistryOptions.rootElement=document.documentElement]
- * @property {string} [RegistryOptions.controllerAttribute="oil-controller"]
- * @property {string} [RegistryOptions.targetAttribute="oil-target"]
+ * @property {string} [RegistryOptions.controllerAttribute="lite-controller"]
+ * @property {string} [RegistryOptions.targetAttribute="lite-target"]
  */
 
 export class Application {
@@ -58,16 +58,16 @@ export class Application {
     this.started = false
 
     /**
-     * The attribute to use for finding a controller. Defaults to "oil-controller".
+     * The attribute to use for finding a controller. Defaults to "lite-controller".
      * @type {string}
      */
-    this.controllerAttribute = options.controllerAttribute || "oil-controller"
+    this.controllerAttribute = options.controllerAttribute || "lite-controller"
 
     /**
-     * The attribute to use for finding targets. Defaults to "oil-target".
+     * The attribute to use for finding targets. Defaults to "lite-target".
      * @type {string}
      */
-    this.targetAttribute = options.targetAttribute || "oil-target"
+    this.targetAttribute = options.targetAttribute || "lite-target"
   }
 
   /**
@@ -506,7 +506,7 @@ export class Application {
   }
 
   /**
-    * Finds all `[oil-target~=<controller>.<target>]`
+    * Finds all `[lite-target~=<controller>.<target>]`
     * @param {string} controllerName -
     * @param {string} targetName
     * @return {string}

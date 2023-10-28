@@ -39,10 +39,10 @@ test("It should record when a target connects", async () => {
   })
 
   const el = await fixture(html`
-    <div oil-controller="example">
-      <div oil-target="example.item"></div>
-      <div oil-target="example.item"></div>
-      <div oil-target="example.item"></div>
+    <div lite-controller="example">
+      <div lite-target="example.item"></div>
+      <div lite-target="example.item"></div>
+      <div lite-target="example.item"></div>
     </div>
   `)
 
@@ -51,9 +51,9 @@ test("It should record when a target connects", async () => {
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 3)
-  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+  assert.equal(controller.itemTarget, el.querySelector("[lite-target]"))
 
-  el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
+  el.querySelectorAll("[lite-target~='example.item']").forEach((target, index) => {
     assert.equal(target, controller.itemTargets[index])
   })
 })
@@ -78,8 +78,8 @@ test("It should record when a target attribute changes and disconnects", async (
   })
 
   const el = await fixture(html`
-    <div oil-controller="example">
-      <div oil-target="example.item"></div>
+    <div lite-controller="example">
+      <div lite-target="example.item"></div>
       <div></div>
     </div>
   `)
@@ -89,7 +89,7 @@ test("It should record when a target attribute changes and disconnects", async (
 
   assert.equal(itemTargetDisconnectedSpy.calledOnce, false)
 
-  el.querySelectorAll("div")[0].setAttribute("oil-target", "")
+  el.querySelectorAll("div")[0].setAttribute("lite-target", "")
   await aTimeout(1)
   assert.equal(controller.hasItemTarget, false)
   assert.equal(controller.itemTarget, null)
@@ -118,8 +118,8 @@ test("It should record when a target element changes its attribute and connects"
   })
 
   const el = await fixture(html`
-    <div oil-controller="example">
-      <div oil-target="example.item"></div>
+    <div lite-controller="example">
+      <div lite-target="example.item"></div>
       <div></div>
     </div>
   `)
@@ -129,21 +129,21 @@ test("It should record when a target element changes its attribute and connects"
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 1)
-  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+  assert.equal(controller.itemTarget, el.querySelector("[lite-target]"))
 
-  el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
+  el.querySelectorAll("[lite-target~='example.item']").forEach((target, index) => {
     assert.equal(target, controller.itemTargets[index])
   })
 
-  el.querySelectorAll("div")[1].setAttribute("oil-target", "example.item")
+  el.querySelectorAll("div")[1].setAttribute("lite-target", "example.item")
 
   await aTimeout(1)
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 2)
-  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+  assert.equal(controller.itemTarget, el.querySelector("[lite-target]"))
 
-  el.querySelectorAll("[oil-target~='example.item']").forEach((target, index) => {
+  el.querySelectorAll("[lite-target~='example.item']").forEach((target, index) => {
     assert.equal(target, controller.itemTargets[index])
   })
 })
@@ -168,26 +168,26 @@ test("It should not count nested targets", async () => {
   })
 
   const el = await fixture(html`
-    <div oil-controller="example">
-      <div oil-target="example.item"></div>
-      <div oil-target="example.item"></div>
-      <div oil-target="example.item"></div>
-      <div id="nested-example" oil-controller="example">
-        <div id="nested-1" class="nested" oil-target="example.item"></div>
-        <div id="nested-2" class="nested" oil-target="example.item"></div>
+    <div lite-controller="example">
+      <div lite-target="example.item"></div>
+      <div lite-target="example.item"></div>
+      <div lite-target="example.item"></div>
+      <div id="nested-example" lite-controller="example">
+        <div id="nested-1" class="nested" lite-target="example.item"></div>
+        <div id="nested-2" class="nested" lite-target="example.item"></div>
       </div>
     </div>
   `)
 
 
   const controller = application.getController(el, "example")
-  const nestedController = application.getController(el.querySelector("[oil-controller~='example']"), "example")
+  const nestedController = application.getController(el.querySelector("[lite-controller~='example']"), "example")
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 3)
-  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+  assert.equal(controller.itemTarget, el.querySelector("[lite-target]"))
 
-  nestedController.element.querySelectorAll(".nested[oil-target~='example.item']").forEach((target, index) => {
+  nestedController.element.querySelectorAll(".nested[lite-target~='example.item']").forEach((target, index) => {
     assert.equal(target, nestedController.itemTargets[index])
   })
 
@@ -226,8 +226,8 @@ test("Should record target disconnects when the parent disconnect", async () => 
   })
 
   const el = await fixture(html`
-    <div oil-controller='example'>
-      <div oil-target="example.item"></div>
+    <div lite-controller='example'>
+      <div lite-target="example.item"></div>
     </div>
   `)
 
@@ -260,13 +260,13 @@ test("It should only disconnect nested targets when using multiple controllers",
 
   const el = document.createElement("div")
   el.innerHTML = `
-    <div oil-controller="example-1 example-2">
-      <div oil-target="example-1.item"></div>
-      <div oil-target="example-1.item example-2.item"></div>
-      <div oil-target="example-1.item example-2.item"></div>
-      <div id="nested" oil-controller="example-1">
-        <div id="nested-1" class="nested" oil-target="example-1.item example-2.item"></div>
-        <div id="nested-2" class="nested" oil-target="example-1.item example-2.item"></div>
+    <div lite-controller="example-1 example-2">
+      <div lite-target="example-1.item"></div>
+      <div lite-target="example-1.item example-2.item"></div>
+      <div lite-target="example-1.item example-2.item"></div>
+      <div id="nested" lite-controller="example-1">
+        <div id="nested-1" class="nested" lite-target="example-1.item example-2.item"></div>
+        <div id="nested-2" class="nested" lite-target="example-1.item example-2.item"></div>
       </div>
     </div>
   `
@@ -348,31 +348,32 @@ test("It should not count nested targets when using multiple controllers", async
   })
 
   const el = await fixture(html`
-    <div oil-controller="example-1 example-2">
-      <div oil-target="example-1.item"></div>
-      <div oil-target="example-1.item example-2.item"></div>
-      <div oil-target="example-1.item example-2.item"></div>
-      <div id="nested-example" oil-controller="example-1">
-        <div id="nested-1" class="nested" oil-target="example-1.item example-2.item"></div>
-        <div id="nested-2" class="nested" oil-target="example-1.item example-2.item"></div>
+    <div lite-controller="example-1 example-2">
+      <div lite-target="example-1.item"></div>
+      <div lite-target="example-1.item example-2.item"></div>
+      <div lite-target="example-1.item example-2.item"></div>
+      <div id="nested-example" lite-controller="example-1">
+        <div id="nested-1" class="nested" lite-target="example-1.item example-2.item"></div>
+        <div id="nested-2" class="nested" lite-target="example-1.item example-2.item"></div>
       </div>
     </div>
   `)
 
+  await aTimeout(0)
 
   const controller = application.getController(el, "example-1")
   const controller2 = application.getController(el, "example-2")
-  const nestedController = application.getController(el.querySelector("[oil-controller~='example-1']"), "example-1")
+  const nestedController = application.getController(el.querySelector("[lite-controller~='example-1']"), "example-1")
 
   assert.equal(controller2.hasItemTarget, true)
   assert.equal(controller2.itemTargets.length, 4)
-  assert.equal(controller2.itemTarget, el.querySelectorAll("[oil-target]")[1])
+  assert.equal(controller2.itemTarget, el.querySelectorAll("[lite-target]")[1])
 
   assert.equal(controller.hasItemTarget, true)
   assert.equal(controller.itemTargets.length, 3)
-  assert.equal(controller.itemTarget, el.querySelector("[oil-target]"))
+  assert.equal(controller.itemTarget, el.querySelector("[lite-target]"))
 
-  nestedController.element.querySelectorAll(".nested[oil-target~='example-1.item']").forEach((target, index) => {
+  nestedController.element.querySelectorAll(".nested[lite-target~='example-1.item']").forEach((target, index) => {
     assert.equal(target, nestedController.itemTargets[index])
   })
 
@@ -391,13 +392,13 @@ test("It should not count nested targets when using multiple controllers", async
   // 1 time for example-1 and example-2
   assert.equal(itemTargetDisconnectedSpy.callCount, 4)
 
-  el.querySelector("[oil-target]").setAttribute("oil-target", "example-2.item")
+  el.querySelector("[lite-target]").setAttribute("lite-target", "example-2.item")
 
   await aTimeout(1)
   assert.equal(itemTargetConnectedSpy.callCount, 9)
   assert.equal(itemTargetDisconnectedSpy.callCount, 5)
 
-  el.querySelector("[oil-controller~='example-1']").remove()
+  el.querySelector("[lite-controller~='example-1']").remove()
   await aTimeout(1)
   // Should not fire any disconnects despite a controller being removed
   assert.equal(itemTargetDisconnectedSpy.callCount, 5)

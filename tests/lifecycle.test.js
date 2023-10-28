@@ -40,7 +40,7 @@ test("It should bind to document and listen for new controllers (append nested)"
 
   const el = await fixture(html`
     <div>
-      <div oil-controller="example"></div>
+      <div lite-controller="example"></div>
     </div>
   `)
 
@@ -104,7 +104,7 @@ test("It should bind root level and listen for new controllers (append top-level
   Sinon.assert.notCalled(disconnectSpy)
 
   const el = await fixture(html`
-    <div oil-controller="example"></div>
+    <div lite-controller="example"></div>
   `)
 
   Sinon.assert.calledOnce(constructorSpy)
@@ -134,7 +134,7 @@ test("It should bind root level and listen for new controllers (append top-level
 })
 
 test("It should invoke the lifecycle if the controllers already exist in the DOM.", async () => {
-  const el = await fixture(html`<div oil-controller='example'></div>`)
+  const el = await fixture(html`<div lite-controller='example'></div>`)
   await aTimeout(1)
 
   const application = Application.start()
@@ -200,14 +200,14 @@ test("It should invoke lifecycles when attributes change", async () => {
   Sinon.assert.notCalled(connectSpy)
   Sinon.assert.notCalled(disconnectSpy)
 
-  el.setAttribute("oil-controller", "example")
+  el.setAttribute("lite-controller", "example")
   await aTimeout(1)
 
   Sinon.assert.calledOnce(constructorSpy)
   Sinon.assert.calledOnce(connectSpy)
   Sinon.assert.notCalled(disconnectSpy)
 
-  el.removeAttribute("oil-controller")
+  el.removeAttribute("lite-controller")
   await aTimeout(1)
 
   Sinon.assert.calledOnce(constructorSpy)

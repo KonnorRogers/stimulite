@@ -2,7 +2,7 @@
 
 ## Coming soon...
 
-## Why `data-oil-target` and not `data-[identifier]-target=""`
+## Why `data-lite-target` and not `data-[identifier]-target=""`
 
 Because It's verbose and I don't like it?
 
