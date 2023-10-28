@@ -1,7 +1,7 @@
 {
-  "name": "oil-rig",
+  "name": "stimulite",
   "version": "0.0.2",
-  "description": "Coming soon...",
+  "description": "A tiny ~2kb alternative to Stimulus",
   "main": "./exports/index.js",
   "module": "./exports/index.js",
   "types": "./exports/index.d.ts",
@@ -29,11 +29,11 @@
   },
   "keywords": [],
   "license": "MIT",
-  "repository": "git@github.com:KonnorRogers/oil-rig.git",
+  "repository": "git@github.com:KonnorRogers/stimulite.git",
   "bugs": {
-    "url": "https://github.com/KonnorRogers/oil-rig/issues"
+    "url": "https://github.com/KonnorRogers/stimulite/issues"
   },
-  "homepage": "https://github.com/KonnorRogers/oil-rig",
+  "homepage": "https://github.com/KonnorRogers/stimulite",
   "author": "KonnorRogers <konnor5456@gmail.com>",
   "publishConfig": {
     "access": "public"
@@ -43,7 +43,7 @@
     "@open-wc/testing-helpers": "^2.3.0",
     "@web/test-runner": "^0.17.2",
     "@web/test-runner-playwright": "^0.10.1",
-    "oil-rig": "link:.",
+    "stimulite": "link:.",
     "playwright": "^1.39.0",
     "rimraf": "^5.0.5",
     "sinon": "^16.1.0",

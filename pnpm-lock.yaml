@@ -17,9 +17,6 @@ devDependencies:
   '@web/test-runner-playwright':
     specifier: ^0.10.1
     version: 0.10.1
-  oil-rig:
-    specifier: link:.
-    version: 'link:'
   playwright:
     specifier: ^1.39.0
     version: 1.39.0
@@ -29,6 +26,9 @@ devDependencies:
   sinon:
     specifier: ^16.1.0
     version: 16.1.0
+  stimulite:
+    specifier: link:.
+    version: 'link:'
   typescript:
     specifier: ^5.2.2
     version: 5.2.2

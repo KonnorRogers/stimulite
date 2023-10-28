@@ -1,6 +1,6 @@
 import { aTimeout, fixture, html } from "@open-wc/testing-helpers"
 import { assert } from "@esm-bundle/chai"
-import { Application, Controller } from "oil-rig"
+import { Application, Controller } from "stimulite"
 import Sinon from "sinon"
 
 test("It should have target functions in the constructor", () => {
