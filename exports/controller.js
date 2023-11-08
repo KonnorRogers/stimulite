@@ -80,6 +80,7 @@ export class Controller {
     this.isConnected = false
   }
 
+  initialize () {}
   connectedCallback () {}
   disconnectedCallback () {}
 }

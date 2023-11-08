@@ -1,7 +1,7 @@
 import { Controller} from "./controller.js"
 /**
  * @typedef {object} RegistryOptions
- * @property {HTMLElement} [RegistryOptions.rootElement=document.documentElement]
+ * @property {HTMLElement | ShadowRoot} [RegistryOptions.rootElement=document.documentElement]
  * @property {string} [RegistryOptions.controllerAttribute="lite-controller"]
  * @property {string} [RegistryOptions.targetAttribute="lite-target"]
  */
@@ -327,15 +327,15 @@ export class Application {
       if (!Constructor) return
 
       inst = new Constructor({ element: el, application: this, controllerName });
+
+      inst.initialize()
       controllerInstanceMap.set(controllerName, inst);
     }
 
     if (!inst.isConnected) {
       inst.isConnected = true
 
-      if(inst.connectedCallback) {
-        inst.connectedCallback();
-      }
+      inst.connectedCallback();
 
       // Find children targets and upgrade them
       setTimeout(() => {
@@ -347,9 +347,7 @@ export class Application {
 
     // Attribute was removed
     if(!hasController) {
-      if(inst.disconnectedCallback) {
-        inst.disconnectedCallback();
-      }
+      inst.disconnectedCallback();
 
       inst.isConnected = false
     }
