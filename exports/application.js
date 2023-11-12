@@ -4,6 +4,8 @@ import { Controller} from "./controller.js"
  * @property {HTMLElement} [RegistryOptions.rootElement=document.documentElement]
  * @property {string} [RegistryOptions.controllerAttribute="lite-controller"]
  * @property {string} [RegistryOptions.targetAttribute="lite-target"]
+ * @property {string} [RegistryOptions.actionAttribute="lite-action"]
+ * @property {(controllerName: string) => string} [RegistryOptions.getValueAttribute=(controllerName: string) => string]
  */
 
 
@@ -69,6 +71,9 @@ export class Application {
      * @type {string}
      */
     this.targetAttribute = options.targetAttribute || "lite-target"
+
+    this.actionAttribute = options.actionAttribute || "lite-action"
+    this.getValueAttribute = options.getValueAttribute || ((controllerName) => `lite-${controllerName}-value`)
   }
 
   /**
