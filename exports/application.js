@@ -4,7 +4,10 @@ import { Controller} from "./controller.js"
  * @property {HTMLElement | ShadowRoot} [RegistryOptions.rootElement=document.documentElement]
  * @property {string} [RegistryOptions.controllerAttribute="lite-controller"]
  * @property {string} [RegistryOptions.targetAttribute="lite-target"]
+ * @property {string} [RegistryOptions.actionAttribute="lite-action"]
+ * @property {(controllerName: string) => string} [RegistryOptions.getValueAttribute=(controllerName: string) => string]
  */
+
 
 export class Application {
   /**
@@ -43,13 +46,13 @@ export class Application {
      * A weakmap of all controller instances attach to a particular element
      * @type {WeakMap<HTMLElement, Map<string, Controller>>}
      */
-    this._controllerInstanceMap = new Map();
+    this._controllerInstanceMap = new WeakMap();
 
     /**
      * A weakmap to track if a target has connected or not for a particular controller.
      * @type {WeakMap<Element | HTMLElement, Map<Controller, boolean>>}
      */
-    this._targetConnectionMap = new Map();
+    this._targetConnectionMap = new WeakMap();
 
     /**
      * If the registry has started listening for new elements.
@@ -68,6 +71,9 @@ export class Application {
      * @type {string}
      */
     this.targetAttribute = options.targetAttribute || "lite-target"
+
+    this.actionAttribute = options.actionAttribute || "lite-action"
+    this.getValueAttribute = options.getValueAttribute || ((controllerName) => `lite-${controllerName}-value`)
   }
 
   /**
