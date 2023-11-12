@@ -25,7 +25,8 @@
     "deploy:patch": "npm run build && npm version patch && npm publish && git push --follow-tags",
     "deploy:minor": "npm run build && npm version minor && npm publish && git push --follow-tags",
     "deploy:major": "npm run build && npm version major && npm publish && git push --follow-tags",
-    "test": "web-test-runner"
+    "test": "web-test-runner",
+    "test:watch": "web-test-runner --watch"
   },
   "keywords": [],
   "license": "MIT",
@@ -41,12 +42,13 @@
   "devDependencies": {
     "@esm-bundle/chai": "4.3.4-fix.0",
     "@open-wc/testing-helpers": "^2.3.0",
+    "@types/mocha": "^10.0.4",
     "@web/test-runner": "^0.17.2",
     "@web/test-runner-playwright": "^0.10.1",
-    "stimulite": "link:.",
     "playwright": "^1.39.0",
     "rimraf": "^5.0.5",
     "sinon": "^16.1.0",
+    "stimulite": "link:.",
     "typescript": "^5.2.2"
   }
 }

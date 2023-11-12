@@ -11,6 +11,9 @@ devDependencies:
   '@open-wc/testing-helpers':
     specifier: ^2.3.0
     version: 2.3.0
+  '@types/mocha':
+    specifier: ^10.0.4
+    version: 10.0.4
   '@web/test-runner':
     specifier: ^0.17.2
     version: 0.17.2(typescript@5.2.2)
@@ -381,8 +384,8 @@ packages:
     resolution: {integrity: sha512-Wj+fqpTLtTbG7c0tH47dkahefpLKEbB+xAZuLq7b4/IDHPl/n6VoXcyUQ2bypFlbSwvCr0y+bD4euTTqTJsPxQ==}
     dev: true
 
-  /@types/mocha@10.0.2:
-    resolution: {integrity: sha512-NaHL0+0lLNhX6d9rs+NSt97WH/gIlRHmszXbQ/8/MV/eVcFNdeJ/GYhrFuUc8K7WuPhRhTSdMkCp8VMzhUq85w==}
+  /@types/mocha@10.0.4:
+    resolution: {integrity: sha512-xKU7bUjiFTIttpWaIZ9qvgg+22O1nmbA+HRxdlR+u6TWsGfmFdXrheJoK4fFxrHNVIOBDvDNKZG+LYBpMHpX3w==}
     dev: true
 
   /@types/node@20.8.6:
@@ -615,7 +618,7 @@ packages:
     resolution: {integrity: sha512-CfYNZBbUSBiPNKkbF/dhxayecLCYZnu3g4cfgpfgmvLewlVOO6gNxaPt2c1/QhZutzTvXcMlsmaoWyk08F+V6A==}
     engines: {node: '>=16.0.0'}
     dependencies:
-      '@types/mocha': 10.0.2
+      '@types/mocha': 10.0.4
       '@web/test-runner-core': 0.11.4
     transitivePeerDependencies:
       - bufferutil
